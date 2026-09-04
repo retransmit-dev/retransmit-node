@@ -16,8 +16,10 @@
   "homepage": "https://docs.retransmit.dev",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/retransmit-dev/retransmit.git",
-    "directory": "packages/sdk"
+    "url": "git+https://github.com/retransmit-dev/retransmit-node.git"
+  },
+  "bugs": {
+    "url": "https://github.com/retransmit-dev/retransmit-node/issues"
   },
   "license": "MIT",
   "type": "module",
@@ -46,11 +48,11 @@
     "prepublishOnly": "pnpm build"
   },
   "devDependencies": {
-    "@retransmit/config": "workspace:*",
-    "@types/node": "catalog:",
+    "@types/node": "^26.2.0",
     "tsup": "^8.5.0",
-    "typescript": "catalog:"
+    "typescript": "^6.0.3"
   },
+  "packageManager": "pnpm@10.27.0",
   "publishConfig": {
     "access": "public"
   },
