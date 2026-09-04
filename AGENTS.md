@@ -16,8 +16,19 @@ from it. Any API change that a client can observe must be mirrored here:
 Update `src/types.ts` and the channel file, document it in `README.md`, then bump `version`
 in `package.json` (semver: additive = minor, breaking = major).
 
+## Tests
+
+`pnpm test` runs vitest against a stubbed `fetch`. No network, no API key, no messages sent.
+End-to-end coverage against the live API lives in the dashboard app, not here.
+
+Each channel test declares a `Record<keyof Send…Options, string>` map of option name to
+wire field. Adding a field to an options interface without adding it to that map fails
+`pnpm check-types`, and satisfying the compiler without updating the payload builder fails
+the test. This is deliberate: the payload builders are hand-written, so an unmapped field
+otherwise compiles cleanly and silently drops the caller's data at runtime.
+
 ## Release
 
-Pushing to `main` runs `.github/workflows/release.yml`. It type-checks, builds, compares
+Pushing to `main` runs `.github/workflows/release.yml`. It type-checks, tests, builds, compares
 `package.json` version with the npm registry, and publishes only when they differ.
 Auth is npm Trusted Publishing (OIDC), no token secret. A push without a version bump is a no-op.
