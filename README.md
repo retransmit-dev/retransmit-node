@@ -1,5 +1,9 @@
 # retransmit.dev
 
+[![CI](https://github.com/retransmit-dev/retransmit-node/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/retransmit-dev/retransmit-node/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/retransmit.dev)](https://www.npmjs.com/package/retransmit.dev)
+[![license](https://img.shields.io/npm/l/retransmit.dev)](https://github.com/retransmit-dev/retransmit-node/blob/main/LICENSE)
+
 Node.js SDK for the [Retransmit](https://retransmit.dev) messaging API. Send email, SMS, and WhatsApp through one typed client. Zero dependencies, works on Node 18+ and edge runtimes with `fetch`.
 
 | Channel | SDK namespace | Availability |
