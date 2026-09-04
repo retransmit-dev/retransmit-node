@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { toWirePayload } from "./emails";
+import { toWirePayload } from "../src/emails";
 import { createClient, onlyRequest, stubFetch, useCleanEnv } from "./test-utils";
-import type { SendEmailOptions } from "./types";
+import type { SendEmailOptions } from "../src/types";
 
 useCleanEnv();
 

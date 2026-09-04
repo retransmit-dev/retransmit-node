@@ -22,5 +22,5 @@
     // tsup's dts build injects `baseUrl`, which TypeScript 6 flags as deprecated.
     "ignoreDeprecations": "6.0"
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }

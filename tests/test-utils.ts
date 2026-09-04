@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, vi } from "vitest";
-import { Retransmit } from "./retransmit";
-import type { RetransmitOptions } from "./types";
+import { Retransmit } from "../src/retransmit";
+import type { RetransmitOptions } from "../src/types";
 
 export const TEST_API_KEY = "rt_test_key";
 

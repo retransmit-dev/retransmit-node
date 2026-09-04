@@ -18,6 +18,7 @@ in `package.json` (semver: additive = minor, breaking = major).
 
 ## Tests
 
+Tests live in `tests/`, one file per source module, and are type-checked along with `src`.
 `pnpm test` runs vitest against a stubbed `fetch`. No network, no API key, no messages sent.
 End-to-end coverage against the live API lives in the dashboard app, not here.
 

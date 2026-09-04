@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { Batch, Emails, EMAIL_STATUSES, Retransmit, SMS_STATUSES, Sms, Whatsapp, WHATSAPP_STATUSES } from "./index";
+import { Batch, Emails, EMAIL_STATUSES, Retransmit, SMS_STATUSES, Sms, Whatsapp, WHATSAPP_STATUSES } from "../src/index";
 import { TEST_API_KEY, useCleanEnv } from "./test-utils";
 
 useCleanEnv();

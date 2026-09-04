@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { Retransmit } from "./retransmit";
+import { Retransmit } from "../src/retransmit";
 import { createClient, onlyRequest, stubFetch, TEST_API_KEY, useCleanEnv } from "./test-utils";
 
 useCleanEnv();

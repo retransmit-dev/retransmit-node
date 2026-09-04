@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createClient, onlyRequest, stubFetch, useCleanEnv } from "./test-utils";
-import type { SendSmsOptions } from "./types";
+import type { SendSmsOptions } from "../src/types";
 
 useCleanEnv();
 
