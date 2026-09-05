@@ -22,6 +22,7 @@ const EMAIL_WIRE_FIELDS: Record<keyof SendEmailOptions, string> = {
   text: "text",
   marketing: "marketing",
   tags: "tags",
+  headers: "headers",
 };
 
 /** Every field populated, so `Required` also breaks when a new option appears. */
@@ -36,6 +37,7 @@ const FULL_EMAIL: Required<SendEmailOptions> = {
   text: "Thanks",
   marketing: true,
   tags: [{ name: "campaign", value: "spring-2026" }],
+  headers: { "X-Entity-Ref-ID": "order_4821" },
 };
 
 describe("toWirePayload", () => {
@@ -58,6 +60,12 @@ describe("toWirePayload", () => {
 
     expect(wire.reply_to).toBe("reply@acme.com");
     expect(wire).not.toHaveProperty("replyTo");
+  });
+
+  it("passes headers through as a name to value object", () => {
+    const wire = toWirePayload(FULL_EMAIL) as Record<string, unknown>;
+
+    expect(wire.headers).toEqual({ "X-Entity-Ref-ID": "order_4821" });
   });
 
   it("drops absent optional fields from the serialised body", async () => {

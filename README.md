@@ -78,6 +78,29 @@ Names and values allow letters, digits, underscores and dashes, up to 256
 characters each. Names must be unique within one email. Batch emails accept
 the same `tags` field.
 
+### Custom headers
+
+Add your own message headers with `headers`. The common case is a unique
+`X-Entity-Ref-ID` per email so Gmail does not thread related messages, such as
+order updates with the same subject, into one conversation.
+
+```ts
+await retransmit.emails.send({
+  from: "Acme <hello@yourdomain.com>",
+  to: "user@example.com",
+  subject: "Your order shipped",
+  html: "<p>Order #4821 is on its way.</p>",
+  headers: { "X-Entity-Ref-ID": "order_4821" },
+});
+```
+
+Up to 20 headers per email. Names are printable ASCII without `:` and may
+only appear once; values are a single line. Headers Retransmit sets itself,
+like `From`, `To`, `Subject`, `Date` or `Message-ID`, are rejected with a
+`validation_error`. Marketing emails keep the hosted `List-Unsubscribe`
+headers even if you pass your own. Headers come back on `emails.get`, and
+batch emails accept the same field.
+
 ### List and filter emails
 
 `emails.list` returns your emails newest first. Every tag you pass must match.

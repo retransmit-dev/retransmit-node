@@ -60,7 +60,20 @@ export interface SendEmailOptions {
    * and are never sent to the recipient.
    */
   tags?: EmailTag[];
+  /**
+   * Custom message headers, keyed by header name, for example
+   * `{ "X-Entity-Ref-ID": "order_4821" }` to stop Gmail threading related
+   * emails together. Up to 20 headers. Names are printable ASCII without `:`
+   * (up to 126 characters); values are single-line, up to 870 characters.
+   * Headers Retransmit sets itself (From, To, Cc, Bcc, Reply-To, Subject,
+   * Date, Message-ID, Return-Path, MIME/Content-* and DKIM-Signature) are
+   * rejected with a `validation_error`. On marketing emails the hosted
+   * List-Unsubscribe headers take precedence over yours.
+   */
+  headers?: EmailHeaders;
 }
+
+export type EmailHeaders = Record<string, string>;
 
 export interface EmailTag {
   name: string;
@@ -89,6 +102,8 @@ export interface GetEmailResponse {
   subject: string;
   marketing: boolean;
   tags: EmailTag[];
+  /** Custom headers given at send time, or null. */
+  headers: EmailHeaders | null;
   status: EmailStatus;
   error: string | null;
   created_at: string;

@@ -5,7 +5,7 @@ import { Whatsapp } from "./whatsapp";
 import type { Result, RetransmitError, RetransmitOptions } from "./types";
 
 const DEFAULT_BASE_URL = "https://api.retransmit.dev";
-const USER_AGENT = "retransmit.dev-node/0.3.0";
+const USER_AGENT = "retransmit.dev-node/0.4.0";
 
 function readEnv(name: string): string | undefined {
   // Guarded so the SDK also loads in edge/browser-like runtimes without `process`.
