@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toWirePayload } from "../src/emails";
+import { toBase64, toWirePayload } from "../src/emails";
 import { createClient, onlyRequest, stubFetch, useCleanEnv } from "./test-utils";
 import type { SendEmailOptions } from "../src/types";
 
@@ -23,6 +23,7 @@ const EMAIL_WIRE_FIELDS: Record<keyof SendEmailOptions, string> = {
   marketing: "marketing",
   tags: "tags",
   headers: "headers",
+  attachments: "attachments",
 };
 
 /** Every field populated, so `Required` also breaks when a new option appears. */
@@ -38,15 +39,58 @@ const FULL_EMAIL: Required<SendEmailOptions> = {
   marketing: true,
   tags: [{ name: "campaign", value: "spring-2026" }],
   headers: { "X-Entity-Ref-ID": "order_4821" },
+  attachments: [{ filename: "invoice.pdf", content: "aGVsbG8=" }],
 };
+
+/** Attachments are re-shaped on the wire; every other field passes through as-is. */
+const PASSTHROUGH_FIELDS = Object.entries(EMAIL_WIRE_FIELDS).filter(
+  ([option]) => option !== "attachments",
+);
 
 describe("toWirePayload", () => {
   it("maps every option onto its wire field", () => {
     const wire = toWirePayload(FULL_EMAIL) as Record<string, unknown>;
 
-    for (const [option, wireName] of Object.entries(EMAIL_WIRE_FIELDS)) {
+    for (const [option, wireName] of PASSTHROUGH_FIELDS) {
       expect(wire[wireName]).toEqual(FULL_EMAIL[option as keyof SendEmailOptions]);
     }
+    expect(wire.attachments).toEqual([
+      {
+        filename: "invoice.pdf",
+        content: "aGVsbG8=",
+        path: undefined,
+        content_type: undefined,
+        content_id: undefined,
+      },
+    ]);
+  });
+
+  it("base64-encodes attachment bytes and maps the attachment fields to snake_case", () => {
+    const wire = toWirePayload({
+      ...FULL_EMAIL,
+      attachments: [
+        {
+          filename: "logo.png",
+          content: new Uint8Array([104, 101, 108, 108, 111]),
+          contentType: "image/png",
+          contentId: "logo",
+        },
+        { filename: "terms.pdf", path: "https://acme.com/terms.pdf" },
+      ],
+    }) as { attachments: Record<string, unknown>[] };
+
+    expect(wire.attachments[0]).toMatchObject({
+      filename: "logo.png",
+      content: "aGVsbG8=",
+      content_type: "image/png",
+      content_id: "logo",
+    });
+    expect(wire.attachments[0]).not.toHaveProperty("contentType");
+    expect(wire.attachments[1]).toMatchObject({
+      filename: "terms.pdf",
+      path: "https://acme.com/terms.pdf",
+      content: undefined,
+    });
   });
 
   it("emits exactly the mapped fields and nothing else", () => {
@@ -97,6 +141,69 @@ describe("emails.send", () => {
     expect(request.method).toBe("POST");
     expect(request.url.pathname).toBe("/v1/emails");
     expect(request.body).toEqual(toWirePayload(FULL_EMAIL));
+  });
+
+  it("sends idempotencyKey as the Idempotency-Key header, not in the body", async () => {
+    const calls = stubFetch({ body: { id: "em_1" } });
+
+    await createClient().emails.send(FULL_EMAIL, { idempotencyKey: "welcome-user/123" });
+
+    const request = onlyRequest(calls);
+    expect(request.headers["Idempotency-Key"]).toBe("welcome-user/123");
+    expect(request.body).toEqual(toWirePayload(FULL_EMAIL));
+  });
+
+  it("omits the Idempotency-Key header when no key is given", async () => {
+    const calls = stubFetch({ body: { id: "em_1" } });
+
+    await createClient().emails.send(FULL_EMAIL);
+    await createClient().emails.send(FULL_EMAIL, {});
+
+    for (const request of calls) {
+      expect(request.headers).not.toHaveProperty("Idempotency-Key");
+    }
+  });
+
+  it("returns the API's 409 idempotency errors as a result, not a throw", async () => {
+    stubFetch({
+      status: 409,
+      body: { error: { code: "invalid_idempotent_request", message: "Different payload" } },
+    });
+
+    const result = await createClient().emails.send(FULL_EMAIL, { idempotencyKey: "k" });
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("invalid_idempotent_request");
+  });
+});
+
+describe("toBase64", () => {
+  it("encodes bytes the same way Buffer does", () => {
+    const bytes = new Uint8Array(70000).map((_, i) => i % 251);
+
+    expect(toBase64(bytes)).toBe(Buffer.from(bytes).toString("base64"));
+  });
+});
+
+describe("emails.attachments", () => {
+  it("GETs the attachment list of an email", async () => {
+    const calls = stubFetch({ body: { attachments: [] } });
+
+    await createClient().emails.attachments("em_1");
+
+    const request = onlyRequest(calls);
+    expect(request.method).toBe("GET");
+    expect(request.url.pathname).toBe("/v1/emails/em_1/attachments");
+  });
+
+  it("GETs one attachment by id", async () => {
+    const calls = stubFetch({ body: { id: "att_1" } });
+
+    await createClient().emails.getAttachment("em_1", "att_1");
+
+    const request = onlyRequest(calls);
+    expect(request.method).toBe("GET");
+    expect(request.url.pathname).toBe("/v1/emails/em_1/attachments/att_1");
   });
 });
 

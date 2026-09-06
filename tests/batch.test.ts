@@ -45,6 +45,24 @@ describe("batch.send", () => {
     expect(body.emails[1]).not.toHaveProperty("replyTo");
   });
 
+  it("sends idempotencyKey as the Idempotency-Key header for the whole batch", async () => {
+    const calls = stubFetch({ body: { id: "bat_1" } });
+
+    await createClient().batch.send(EMAILS, { idempotencyKey: "weekly-digest/2026-09-07" });
+
+    const request = onlyRequest(calls);
+    expect(request.headers["Idempotency-Key"]).toBe("weekly-digest/2026-09-07");
+    expect(request.body).toEqual({ emails: EMAILS.map(toWirePayload) });
+  });
+
+  it("omits the Idempotency-Key header when no key is given", async () => {
+    const calls = stubFetch({ body: { id: "bat_1" } });
+
+    await createClient().batch.send(EMAILS);
+
+    expect(onlyRequest(calls).headers).not.toHaveProperty("Idempotency-Key");
+  });
+
   it("sends an empty array unchanged rather than omitting it", async () => {
     const calls = stubFetch({ body: { id: "bat_1" } });
 

@@ -101,6 +101,80 @@ like `From`, `To`, `Subject`, `Date` or `Message-ID`, are rejected with a
 headers even if you pass your own. Headers come back on `emails.get`, and
 batch emails accept the same field.
 
+### Attachments
+
+Attach up to 20 files, 30 MB in total. Pass the bytes as `content` (a
+`Buffer`, `Uint8Array` or base64 string), or a public URL as `path` and
+Retransmit fetches it while the request runs. Either way the file travels
+inside the email.
+
+```ts
+import { readFile } from "node:fs/promises";
+
+await retransmit.emails.send({
+  from: "Acme <billing@yourdomain.com>",
+  to: "user@example.com",
+  subject: "Your invoice",
+  html: "<p>Your invoice is attached.</p>",
+  attachments: [
+    { filename: "invoice.pdf", content: await readFile("./invoice.pdf") },
+    { filename: "terms.pdf", path: "https://yourdomain.com/terms.pdf" },
+  ],
+});
+```
+
+To embed an image in the HTML, give it a `contentId` and reference it as
+`cid:`:
+
+```ts
+await retransmit.emails.send({
+  from: "Acme <hello@yourdomain.com>",
+  to: "user@example.com",
+  subject: "Welcome",
+  html: '<p><img src="cid:logo" alt="Acme" /> Glad to have you.</p>',
+  attachments: [{ filename: "logo.png", path: "https://yourdomain.com/logo.png", contentId: "logo" }],
+});
+```
+
+Executables, scripts and installers are rejected with `invalid_attachment`,
+and `batch.send` does not accept attachments. Files are kept for 30 days so
+you can see what went out:
+
+```ts
+const { data } = await retransmit.emails.attachments("em_xxxxxxxxxxxx");
+// data.attachments: [{ id, filename, content_type, size, download_url, expires_at, ... }]
+```
+
+`download_url` is signed and valid for one hour; it is `null` once the file
+has expired.
+
+### Idempotency
+
+A send can succeed on the server and still fail on your side, through a
+timeout or a dropped connection. Retrying it blindly sends the email twice.
+Pass an `idempotencyKey` and retries become safe: for 24 hours the same key
+with the same payload returns the original response, `id` included, and
+nothing is queued again.
+
+```ts
+await retransmit.emails.send(
+  {
+    from: "Acme <hello@yourdomain.com>",
+    to: "user@example.com",
+    subject: "Welcome to Acme",
+    html: "<p>Glad to have you.</p>",
+  },
+  { idempotencyKey: "welcome-user/123" },
+);
+```
+
+Use a value that identifies that exact email, such as a UUID or
+`<event>/<entity-id>`. Keys are 1 to 256 characters and are shared by every
+API key in your organization. The same key with a different payload returns
+`invalid_idempotent_request`; a retry that overlaps the first request returns
+`concurrent_idempotent_requests`, so wait a moment and try again. Batches
+accept the same option with one key for the whole batch.
+
 ### List and filter emails
 
 `emails.list` returns your emails newest first. Every tag you pass must match.
@@ -160,10 +234,13 @@ console.log(data?.status); // "sent" | "delivered" | "undelivered" | ...
 Send up to 10,000 emails in one request:
 
 ```ts
-const { data: batch } = await retransmit.batch.send([
-  { from: "Acme <hello@yourdomain.com>", to: "a@example.com", subject: "Hi", text: "Hello A" },
-  { from: "Acme <hello@yourdomain.com>", to: "b@example.com", subject: "Hi", text: "Hello B" },
-]);
+const { data: batch } = await retransmit.batch.send(
+  [
+    { from: "Acme <hello@yourdomain.com>", to: "a@example.com", subject: "Hi", text: "Hello A" },
+    { from: "Acme <hello@yourdomain.com>", to: "b@example.com", subject: "Hi", text: "Hello B" },
+  ],
+  { idempotencyKey: "weekly-digest/2026-09-07" },
+);
 
 const { data: progress } = await retransmit.batch.get(batch!.id);
 console.log(progress?.processed, "/", progress?.total, progress?.counts);

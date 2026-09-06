@@ -1,15 +1,32 @@
 import { toWirePayload } from "./emails";
 import type { Retransmit } from "./retransmit";
-import type { GetBatchResponse, Result, SendBatchResponse, SendEmailOptions } from "./types";
+import type {
+  GetBatchResponse,
+  RequestOptions,
+  Result,
+  SendBatchResponse,
+  SendEmailOptions,
+} from "./types";
 
 export class Batch {
   constructor(private readonly client: Retransmit) {}
 
-  /** Queues up to 10,000 emails in one request. Track progress with `get(id)`. */
-  send(emails: SendEmailOptions[]): Promise<Result<SendBatchResponse>> {
-    return this.client.request("POST", "/v1/emails/batch", {
-      emails: emails.map(toWirePayload),
-    });
+  /**
+   * Queues up to 10,000 emails in one request. Track progress with `get(id)`.
+   * Pass `{ idempotencyKey }` covering the whole batch to make the call safe
+   * to retry.
+   */
+  send(
+    emails: SendEmailOptions[],
+    requestOptions?: RequestOptions,
+  ): Promise<Result<SendBatchResponse>> {
+    return this.client.request(
+      "POST",
+      "/v1/emails/batch",
+      { emails: emails.map(toWirePayload) },
+      undefined,
+      requestOptions,
+    );
   }
 
   /** Batch progress: how many emails are in each status so far. */

@@ -4,6 +4,9 @@ export { Sms } from "./sms";
 export { Whatsapp } from "./whatsapp";
 export { Batch } from "./batch";
 export type {
+  Attachment,
+  EmailAttachment,
+  EmailAttachmentWithDownload,
   EmailEvent,
   EmailStatus,
   EmailSummary,
@@ -12,9 +15,11 @@ export type {
   GetBatchResponse,
   GetEmailResponse,
   GetSmsResponse,
+  ListEmailAttachmentsResponse,
   ListEmailTagsResponse,
   ListEmailsOptions,
   ListEmailsResponse,
+  RequestOptions,
   Result,
   RetransmitError,
   RetransmitOptions,

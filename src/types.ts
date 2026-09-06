@@ -33,6 +33,19 @@ export interface RetransmitOptions {
   baseUrl?: string;
 }
 
+/** Per-request options, passed as the second argument of `emails.send` and `batch.send`. */
+export interface RequestOptions {
+  /**
+   * Makes the request safe to retry. Sent as the `Idempotency-Key` header.
+   * For 24 hours, a retry with the same key and payload returns the original
+   * response instead of queuing the email again. 1 to 256 characters; a UUID
+   * or `<event>/<entity-id>` such as `welcome-user/123` works well. A retry
+   * with a different payload fails with `invalid_idempotent_request`, and one
+   * that overlaps the first request fails with `concurrent_idempotent_requests`.
+   */
+  idempotencyKey?: string;
+}
+
 export interface SendEmailOptions {
   /** Sender, as `address@domain.com` or `Name <address@domain.com>`. The domain must be verified on your account. */
   from: string;
@@ -71,9 +84,63 @@ export interface SendEmailOptions {
    * List-Unsubscribe headers take precedence over yours.
    */
   headers?: EmailHeaders;
+  /**
+   * Files to attach, up to 20 per email and 30 MB in total. Each needs a
+   * `filename` and either `content` (the bytes) or `path` (a public URL
+   * fetched when you call `send`). Add `contentId` to embed an image inline.
+   * Not accepted by `batch.send`.
+   */
+  attachments?: Attachment[];
 }
 
 export type EmailHeaders = Record<string, string>;
+
+/** A file to attach. Provide exactly one of `content` and `path`. */
+export interface Attachment {
+  /**
+   * Name the recipient sees, up to 255 characters, no path separators. Its
+   * extension sets the content type when `contentType` is omitted.
+   */
+  filename: string;
+  /** The file: a `Buffer`, a `Uint8Array`, or an already base64 encoded string. */
+  content?: string | Uint8Array;
+  /**
+   * Public http(s) URL the file is fetched from while the request runs, with
+   * a 15 second budget. Private and internal hosts are refused.
+   */
+  path?: string;
+  /** MIME type such as `application/pdf`. Inferred from the filename when omitted. */
+  contentType?: string;
+  /**
+   * Embeds the file inline and sets its Content-ID. Reference it in `html`
+   * as `<img src="cid:the-id">`. Letters, digits, `.`, `_`, `@` and `-`, up
+   * to 128 characters, unique per email.
+   */
+  contentId?: string;
+}
+
+/** An attachment as it was sent, without a download link. */
+export interface EmailAttachment {
+  id: string;
+  filename: string;
+  content_type: string;
+  /** Size in bytes of the decoded file. */
+  size: number;
+  content_id: string | null;
+  /** True for images embedded via `contentId`. */
+  inline: boolean;
+}
+
+export interface EmailAttachmentWithDownload extends EmailAttachment {
+  /** When the stored file is deleted, 30 days after the send. */
+  expires_at: string;
+  /** Signed link to download the file, valid for one hour. `null` once the file has expired. */
+  download_url: string | null;
+}
+
+export interface ListEmailAttachmentsResponse {
+  attachments: EmailAttachmentWithDownload[];
+}
 
 export interface EmailTag {
   name: string;
@@ -109,6 +176,8 @@ export interface GetEmailResponse {
   created_at: string;
   last_event_at: string | null;
   events: EmailEvent[];
+  /** Attachments given at send time, without download links. See `emails.attachments`. */
+  attachments: EmailAttachment[];
 }
 
 export interface ListEmailsOptions {

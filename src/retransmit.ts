@@ -2,10 +2,10 @@ import { Batch } from "./batch";
 import { Emails } from "./emails";
 import { Sms } from "./sms";
 import { Whatsapp } from "./whatsapp";
-import type { Result, RetransmitError, RetransmitOptions } from "./types";
+import type { RequestOptions, Result, RetransmitError, RetransmitOptions } from "./types";
 
 const DEFAULT_BASE_URL = "https://api.retransmit.dev";
-const USER_AGENT = "retransmit.dev-node/0.4.0";
+const USER_AGENT = "retransmit.dev-node/0.5.0";
 
 function readEnv(name: string): string | undefined {
   // Guarded so the SDK also loads in edge/browser-like runtimes without `process`.
@@ -41,6 +41,7 @@ export class Retransmit {
     path: string,
     body?: unknown,
     query?: Record<string, string | number | string[] | undefined>,
+    options: RequestOptions = {},
   ): Promise<Result<T>> {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(query ?? {})) {
@@ -50,15 +51,20 @@ export class Retransmit {
     const encoded = params.toString();
     const search = encoded ? `?${encoded}` : "";
 
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.apiKey}`,
+      "Content-Type": "application/json",
+      "User-Agent": USER_AGENT,
+    };
+    if (options.idempotencyKey !== undefined) {
+      headers["Idempotency-Key"] = options.idempotencyKey;
+    }
+
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}${search}`, {
         method,
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-          "User-Agent": USER_AGENT,
-        },
+        headers,
         body: body === undefined ? undefined : JSON.stringify(body),
       });
     } catch (cause) {
