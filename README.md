@@ -229,6 +229,47 @@ const { data } = await retransmit.sms.get("sms_xxxxxxxxxxxx");
 console.log(data?.status); // "sent" | "delivered" | "undelivered" | ...
 ```
 
+### Sender IDs
+
+`from` is the name shown on the handset instead of a phone number. Approval is
+per country, so request it first in the dashboard under **SMS > Sender IDs**.
+The request asks for the name and the countries you send to. Most countries
+accept the name as it is; where the carriers require a registration, the form
+adds what that filing needs (what you send, a sample message, your legal
+entity). Retransmit files it for you, and there is no AWS or carrier account to
+set up.
+
+Sending with a name that is not approved for the destination country fails with
+`sender_not_allowed`. Leave `from` out to use your approved sender for that
+country, or the provider default when you have none.
+
+The United States, Canada, and Mexico do not accept alphanumeric sender IDs.
+
+### Choosing a carrier
+
+You do not have to work out which carrier fits a number. Leave `provider` out
+and Retransmit routes by destination country and price.
+
+Pass it to pin the send to one carrier. `sns` (AWS End User Messaging) is the
+one that reaches every destination; `mtn` and `orange` only cover the countries
+Retransmit has that carrier in:
+
+```ts
+await retransmit.sms.send({
+  to: "+237670000000",
+  text: "Your verification code is 482913",
+  provider: "sns", // "sns" | "mtn" | "orange"
+});
+```
+
+The value is the carrier, not one of its country operations, so it keeps
+working as more countries are added. A pinned send never falls back: if that
+carrier cannot deliver to the destination, the request fails with `no_route`.
+
+`get` returns both. `requested_provider` is what you asked for, `provider` is
+the country operation that carried the message (`mtn_cm`, `orange_cm`,
+`aws_sns`), and is null until the message is routed.
+
 ## Email batches
 
 Send up to 10,000 emails in one request:

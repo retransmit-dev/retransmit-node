@@ -9,12 +9,14 @@ const SMS_WIRE_FIELDS: Record<keyof SendSmsOptions, string> = {
   from: "from",
   to: "to",
   text: "text",
+  provider: "provider",
 };
 
 const FULL_SMS: Required<SendSmsOptions> = {
   from: "Acme",
   to: ["+237670000000", "+237670000001"],
   text: "Your verification code is 482913",
+  provider: "sns",
 };
 
 describe("sms.send", () => {
@@ -40,7 +42,7 @@ describe("sms.send", () => {
     }
   });
 
-  it("omits the optional sender when it is not given", async () => {
+  it("omits the optional sender and provider when they are not given", async () => {
     const calls = stubFetch({ body: { id: "sms_1" } });
 
     await createClient().sms.send({ to: "+237670000000", text: "hi" });

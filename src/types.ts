@@ -238,16 +238,39 @@ export const SMS_STATUSES = [
 ] as const;
 export type SmsStatus = (typeof SMS_STATUSES)[number];
 
+/**
+ * Carriers a send can be pinned to. Carrier-level, not per-country: `mtn`
+ * covers every MTN network Retransmit integrates with. `sns` (AWS End User
+ * Messaging) is first because it is the one that reaches every destination.
+ */
+export const SMS_PROVIDERS = ["sns", "mtn", "orange"] as const;
+export type SmsProvider = (typeof SMS_PROVIDERS)[number];
+
 export interface SendSmsOptions {
   /**
    * Sender id shown on the recipient's device (up to 11 characters:
-   * letters, digits, space, - and _). Defaults to the sender configured for
-   * the routed provider.
+   * letters, digits, space, - and _).
+   *
+   * Approval is per country, so this must be a name your organization has had
+   * approved for the destination; request it in the dashboard under
+   * SMS > Sender IDs, which asks for the name and the countries, and for
+   * registration details only where the carriers require a filing. Sending
+   * with an unapproved name fails with `sender_not_allowed`. Leave it out to
+   * use your approved sender for that country, or the provider default when
+   * you have none.
    */
   from?: string;
   /** One recipient or up to 50, in international format (`+237670000000`). All must share one country. */
   to: string | string[];
   text: string;
+  /**
+   * Pins the send to one carrier. Leave it out to let Retransmit route by
+   * destination country and price. `sns` covers every destination; `mtn` and
+   * `orange` only the countries Retransmit has that carrier in. A pinned send
+   * never falls back to another carrier: it fails with `no_route` when that
+   * one cannot deliver.
+   */
+  provider?: SmsProvider;
 }
 
 export interface SendSmsResponse {
@@ -272,7 +295,13 @@ export interface GetSmsResponse {
   text: string;
   country: string | null;
   segments: number;
-  /** Upstream provider that carried the message, e.g. `mtn_cm`. */
+  /** Carrier the send was pinned to, null when routing chose freely. */
+  requested_provider: SmsProvider | null;
+  /**
+   * Country operation that carried the message, e.g. `mtn_cm`, `orange_cm`
+   * or `aws_sns`. More specific than `requested_provider`, and null until
+   * the message is routed.
+   */
   provider: string | null;
   status: SmsStatus;
   error: string | null;

@@ -29,6 +29,7 @@ export type {
   SendSmsOptions,
   SendSmsResponse,
   SmsEvent,
+  SmsProvider,
   SmsStatus,
   GetWhatsappResponse,
   SendWhatsappOptions,
@@ -40,4 +41,4 @@ export type {
   WhatsappStatus,
   WhatsappTemplate,
 } from "./types";
-export { EMAIL_STATUSES, SMS_STATUSES, WHATSAPP_STATUSES } from "./types";
+export { EMAIL_STATUSES, SMS_PROVIDERS, SMS_STATUSES, WHATSAPP_STATUSES } from "./types";

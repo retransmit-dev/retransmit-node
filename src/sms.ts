@@ -10,6 +10,7 @@ export class Sms {
       from: options.from,
       to: options.to,
       text: options.text,
+      provider: options.provider,
     });
   }
 
