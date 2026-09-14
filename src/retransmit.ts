@@ -5,7 +5,7 @@ import { Whatsapp } from "./whatsapp";
 import type { RequestOptions, Result, RetransmitError, RetransmitOptions } from "./types";
 
 const DEFAULT_BASE_URL = "https://api.retransmit.dev";
-const USER_AGENT = "retransmit.dev-node/0.6.0";
+const USER_AGENT = "retransmit.dev-node/0.7.0";
 
 function readEnv(name: string): string | undefined {
   // Guarded so the SDK also loads in edge/browser-like runtimes without `process`.
@@ -37,7 +37,7 @@ export class Retransmit {
 
   /** Internal transport shared by the resource classes. API failures are returned, never thrown. */
   async request<T>(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "PATCH",
     path: string,
     body?: unknown,
     query?: Record<string, string | number | string[] | undefined>,

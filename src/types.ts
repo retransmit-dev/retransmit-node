@@ -21,9 +21,52 @@ export const EMAIL_STATUSES = [
 ] as const;
 export type EmailStatus = (typeof EMAIL_STATUSES)[number];
 
+/**
+ * Why a bounce happened, read from the SMTP response the receiving server
+ * returned. The distinction that matters is whether the address is bad or
+ * whether your sending was refused: the first five add the recipient to your
+ * suppression list, the rest leave the address alone because the mailbox is
+ * fine and will accept mail again once the problem is fixed.
+ */
+export const BOUNCE_REASONS = [
+  /** No account with that address. Suppressed. */
+  "mailbox_not_found",
+  /** The account is disabled, suspended or unused. Suppressed. */
+  "mailbox_inactive",
+  /** The domain has no reachable mail server. Suppressed. */
+  "dns_failure",
+  /** A rule on the recipient's side refused the message. Suppressed. */
+  "policy_block",
+  /** The address is on the upstream provider's suppression list. Suppressed. */
+  "provider_suppressed",
+  /** Over quota. Usually clears on its own. */
+  "mailbox_full",
+  /** A spam filter rejected the content. */
+  "spam_block",
+  /** Your sending IP or domain is blocked or on a blocklist. */
+  "reputation_block",
+  /** SPF, DKIM or DMARC did not pass at the receiver. */
+  "authentication_failure",
+  /** The receiving server is throttling you. */
+  "rate_limited",
+  /** Over the receiver's size limit. */
+  "message_too_large",
+  /** An attachment or the body was refused. */
+  "content_rejected",
+  /** No recognisable reason. Suppressed, since it cannot be told from a dead address. */
+  "unknown",
+] as const;
+export type BounceReason = (typeof BOUNCE_REASONS)[number];
+
 export interface RetransmitError {
   code: string;
   message: string;
+  /**
+   * On `quota_exceeded`, the plan's allowance for the billing period and how
+   * much of it is already used. Absent on every other error.
+   */
+  limit?: number;
+  used?: number;
 }
 
 export type Result<T> = { data: T; error: null } | { data: null; error: RetransmitError };
@@ -91,6 +134,17 @@ export interface SendEmailOptions {
    * Not accepted by `batch.send`.
    */
   attachments?: Attachment[];
+  /**
+   * Send at this time instead of now, as an ISO 8601 instant with an offset:
+   * `new Date(Date.now() + 60 * 60 * 1000).toISOString()`. Must be in the
+   * future and at most 30 days ahead. A bare local time such as
+   * `"2026-09-20T09:00:00"` is rejected, because it means a different instant
+   * to you and to the server.
+   *
+   * The email is created with status `scheduled`. Move it with
+   * `emails.reschedule` or stop it with `emails.cancel` until it goes out.
+   */
+  scheduledAt?: string;
 }
 
 export type EmailHeaders = Record<string, string>;
@@ -149,8 +203,30 @@ export interface EmailTag {
 
 export interface SendEmailResponse {
   id: string;
-  status: "queued";
+  /** `scheduled` when the send carried `scheduledAt`, otherwise `queued`. */
+  status: "queued" | "scheduled";
   created_at: string;
+  /** When the email will be sent, or null for an immediate send. */
+  scheduled_at: string | null;
+}
+
+export interface RescheduleEmailOptions {
+  /**
+   * New send time, as an ISO 8601 instant with an offset. Must be in the
+   * future and at most 30 days ahead.
+   */
+  scheduledAt: string;
+}
+
+export interface RescheduleEmailResponse {
+  id: string;
+  status: "scheduled";
+  scheduled_at: string;
+}
+
+export interface CancelEmailResponse {
+  id: string;
+  status: "canceled";
 }
 
 export interface EmailEvent {
@@ -173,7 +249,11 @@ export interface GetEmailResponse {
   headers: EmailHeaders | null;
   status: EmailStatus;
   error: string | null;
+  /** Why the bounce happened, when `status` is `bounced`. Null otherwise. */
+  bounce_reason: BounceReason | null;
   created_at: string;
+  /** When the email is due to be sent, or null for an immediate send. */
+  scheduled_at: string | null;
   last_event_at: string | null;
   events: EmailEvent[];
   /** Attachments given at send time, without download links. See `emails.attachments`. */
@@ -206,7 +286,9 @@ export interface EmailSummary {
   tags: EmailTag[];
   status: EmailStatus;
   error: string | null;
+  bounce_reason: BounceReason | null;
   created_at: string;
+  scheduled_at: string | null;
   last_event_at: string | null;
 }
 

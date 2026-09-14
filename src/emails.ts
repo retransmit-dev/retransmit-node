@@ -1,6 +1,7 @@
 import type { Retransmit } from "./retransmit";
 import type {
   Attachment,
+  CancelEmailResponse,
   EmailAttachmentWithDownload,
   GetEmailResponse,
   ListEmailAttachmentsResponse,
@@ -8,6 +9,8 @@ import type {
   ListEmailsOptions,
   ListEmailsResponse,
   RequestOptions,
+  RescheduleEmailOptions,
+  RescheduleEmailResponse,
   Result,
   SendEmailOptions,
   SendEmailResponse,
@@ -52,6 +55,7 @@ export function toWirePayload(options: SendEmailOptions) {
     tags: options.tags,
     headers: options.headers,
     attachments: options.attachments?.map(toWireAttachment),
+    scheduled_at: options.scheduledAt,
   };
 }
 
@@ -78,6 +82,31 @@ export class Emails {
   /** Retrieves an email with its current status and event history. */
   get(id: string): Promise<Result<GetEmailResponse>> {
     return this.client.request("GET", `/v1/emails/${encodeURIComponent(id)}`);
+  }
+
+  /**
+   * Moves a scheduled email to a new time. Only the schedule can change: the
+   * content was validated and billed when the email was created, so send a
+   * new email instead of editing this one. Fails with `not_scheduled` once
+   * the email has left the queue.
+   */
+  reschedule(
+    id: string,
+    options: RescheduleEmailOptions,
+  ): Promise<Result<RescheduleEmailResponse>> {
+    return this.client.request("PATCH", `/v1/emails/${encodeURIComponent(id)}`, {
+      scheduled_at: options.scheduledAt,
+    });
+  }
+
+  /**
+   * Stops a scheduled email before it goes out. The email is not deleted: it
+   * keeps status `canceled` and stays visible in `get` and `list`. Fails with
+   * `not_scheduled` once the email has left the queue — a sent email cannot
+   * be recalled.
+   */
+  cancel(id: string): Promise<Result<CancelEmailResponse>> {
+    return this.client.request("POST", `/v1/emails/${encodeURIComponent(id)}/cancel`);
   }
 
   /**

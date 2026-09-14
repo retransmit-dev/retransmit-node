@@ -24,6 +24,7 @@ const EMAIL_WIRE_FIELDS: Record<keyof SendEmailOptions, string> = {
   tags: "tags",
   headers: "headers",
   attachments: "attachments",
+  scheduledAt: "scheduled_at",
 };
 
 /** Every field populated, so `Required` also breaks when a new option appears. */
@@ -40,6 +41,7 @@ const FULL_EMAIL: Required<SendEmailOptions> = {
   tags: [{ name: "campaign", value: "spring-2026" }],
   headers: { "X-Entity-Ref-ID": "order_4821" },
   attachments: [{ filename: "invoice.pdf", content: "aGVsbG8=" }],
+  scheduledAt: "2026-09-20T09:00:00.000Z",
 };
 
 /** Attachments are re-shaped on the wire; every other field passes through as-is. */
@@ -272,5 +274,89 @@ describe("emails.tags", () => {
     const request = onlyRequest(calls);
     expect(request.method).toBe("GET");
     expect(request.url.pathname).toBe("/v1/emails/tags");
+  });
+});
+
+describe("scheduling", () => {
+  it("sends the ISO instant as scheduled_at", () => {
+    const scheduledAt = new Date(Date.UTC(2026, 8, 20, 9)).toISOString();
+    const wire = toWirePayload({ ...FULL_EMAIL, scheduledAt }) as Record<string, unknown>;
+
+    expect(wire.scheduled_at).toBe("2026-09-20T09:00:00.000Z");
+  });
+
+  it("passes the string through untouched, so the API validates it", async () => {
+    // Including one the API will reject: the server's message names the
+    // field, which beats the SDK guessing at what the caller meant.
+    const calls = stubFetch({ body: { id: "em_1" } });
+
+    await createClient().emails.send({ ...FULL_EMAIL, scheduledAt: "2026-09-20T09:00:00" });
+
+    expect((onlyRequest(calls).body as Record<string, unknown>).scheduled_at).toBe(
+      "2026-09-20T09:00:00",
+    );
+  });
+
+  it("omits scheduled_at entirely for an immediate send", async () => {
+    const calls = stubFetch({ body: { id: "em_1" } });
+
+    await createClient().emails.send({
+      from: "a@x.com",
+      to: "b@x.com",
+      subject: "s",
+      text: "t",
+    });
+
+    expect(onlyRequest(calls).body).not.toHaveProperty("scheduled_at");
+  });
+});
+
+describe("emails.reschedule", () => {
+  it("PATCHes the new time to /v1/emails/:id", async () => {
+    const calls = stubFetch({ body: { id: "em_1", status: "scheduled" } });
+
+    await createClient().emails.reschedule("em_1", {
+      scheduledAt: new Date(Date.UTC(2026, 8, 21, 9)).toISOString(),
+    });
+
+    const request = onlyRequest(calls);
+    expect(request.method).toBe("PATCH");
+    expect(request.url.pathname).toBe("/v1/emails/em_1");
+    expect(request.body).toEqual({ scheduled_at: "2026-09-21T09:00:00.000Z" });
+  });
+
+  it("returns not_scheduled as a result rather than throwing", async () => {
+    stubFetch({
+      status: 422,
+      body: { error: { code: "not_scheduled", message: "Already sent" } },
+    });
+
+    const result = await createClient().emails.reschedule("em_1", {
+      scheduledAt: "2026-09-21T09:00:00Z",
+    });
+
+    expect(result.data).toBeNull();
+    expect(result.error?.code).toBe("not_scheduled");
+  });
+});
+
+describe("emails.cancel", () => {
+  it("POSTs to /v1/emails/:id/cancel with no body", async () => {
+    const calls = stubFetch({ body: { id: "em_1", status: "canceled" } });
+
+    await createClient().emails.cancel("em_1");
+
+    const request = onlyRequest(calls);
+    expect(request.method).toBe("POST");
+    expect(request.url.pathname).toBe("/v1/emails/em_1/cancel");
+    expect(request.body).toBeUndefined();
+  });
+
+  it("escapes the id in the path", async () => {
+    const calls = stubFetch({ body: {} });
+
+    await createClient().emails.cancel("em_/../1");
+
+    expect(onlyRequest(calls).url.pathname).toBe("/v1/emails/em_%2F..%2F1/cancel");
   });
 });

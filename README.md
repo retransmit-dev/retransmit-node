@@ -175,6 +175,93 @@ API key in your organization. The same key with a different payload returns
 `concurrent_idempotent_requests`, so wait a moment and try again. Batches
 accept the same option with one key for the whole batch.
 
+### Scheduling
+
+Pass `scheduledAt` to send later instead of now. It takes an ISO 8601 instant
+with an offset, which is what `Date.toISOString()` gives you. The time must be
+in the future and at most 30 days ahead. A bare local time such as
+`"2026-09-20T09:00:00"` is rejected: it would mean one instant on your clock
+and another on ours.
+
+```ts
+const delayMinutes = 60;
+const scheduledAt = new Date(Date.now() + delayMinutes * 60 * 1000).toISOString();
+
+const { data } = await retransmit.emails.send({
+  from: "Acme <hello@yourdomain.com>",
+  to: "user@example.com",
+  subject: "Your trial ends tomorrow",
+  html: "<p>Here is what happens next.</p>",
+  scheduledAt,
+});
+
+console.log(data?.status); // "scheduled"
+```
+
+An absolute time works the same way:
+
+```ts
+scheduledAt: new Date("2026-09-20T09:00:00Z").toISOString(),
+```
+
+Until it goes out you can move it or stop it:
+
+```ts
+await retransmit.emails.reschedule("em_xxxxxxxxxxxx", {
+  scheduledAt: new Date("2026-09-21T09:00:00Z").toISOString(),
+});
+
+await retransmit.emails.cancel("em_xxxxxxxxxxxx");
+```
+
+Both fail with `not_scheduled` once the email has left the queue — a sent
+email cannot be recalled. A cancelled email is not deleted: it keeps status
+`canceled` and stays visible in `get` and `list`. Only the schedule can be
+changed; to change the content, send a new email.
+
+`batch.send` takes `scheduledAt` per email, so one batch can mix immediate and
+scheduled sends.
+
+### Why an email bounced
+
+When `status` is `bounced`, `bounceReason` on a retrieved email says why, read
+from the SMTP response the receiving server returned. The distinction worth
+acting on is whether the address is bad or whether your sending was refused:
+
+```ts
+const { data } = await retransmit.emails.get("em_xxxxxxxxxxxx");
+
+if (data?.bounce_reason === "spam_block") {
+  // The content was filtered. The address is fine and is not suppressed.
+} else if (data?.bounce_reason === "mailbox_not_found") {
+  // The address is dead and has been added to your suppression list.
+}
+```
+
+| Reason | Suppressed | Meaning |
+| --- | --- | --- |
+| `mailbox_not_found` | Yes | No account with that address. |
+| `mailbox_inactive` | Yes | The account is disabled, suspended or unused. |
+| `dns_failure` | Yes | The domain has no reachable mail server. |
+| `policy_block` | Yes | A rule on the recipient's side refused the message. |
+| `provider_suppressed` | Yes | On the upstream provider's suppression list from an earlier bounce. |
+| `mailbox_full` | No | Over quota. Usually clears on its own. |
+| `spam_block` | No | A spam filter rejected the content. |
+| `reputation_block` | No | Your sending IP or domain is blocked or on a blocklist. |
+| `authentication_failure` | No | SPF, DKIM or DMARC did not pass at the receiver. |
+| `rate_limited` | No | The receiving server is throttling you. |
+| `message_too_large` | No | Over the receiver's size limit. |
+| `content_rejected` | No | An attachment or the body was refused. |
+| `unknown` | Yes | No recognisable reason. Treated as a bad address. |
+
+Reasons marked "Suppressed" add the recipient to your suppression list. The
+rest leave the address alone: the mailbox is fine, and it will accept mail
+again once the underlying problem is fixed.
+
+No mailbox provider reports spam-folder placement back to a sender, so a
+`spam_block` bounce is the only direct signal that filtering is happening.
+An email filed silently into junk counts as `delivered`.
+
 ### List and filter emails
 
 `emails.list` returns your emails newest first. Every tag you pass must match.
@@ -188,7 +275,7 @@ const { data } = await retransmit.emails.list({
 });
 
 for (const email of data!.emails) {
-  console.log(email.id, email.to, email.status, email.tags);
+  console.log(email.id, email.to, email.status, email.bounce_reason);
 }
 
 if (data!.has_more) {
@@ -329,6 +416,21 @@ if (error) {
 ```
 
 Only constructing the client without an API key throws.
+
+### Plan limits
+
+A send returns `quota_exceeded` when the account is out of included emails with
+no payment method on file, or when SMS or WhatsApp is sent without one. Those
+two channels are pay as you go on every plan, so they always need a card. The
+error carries the numbers, and is not worth retrying — the fix is in
+[the dashboard](https://app.retransmit.dev/settings/billing):
+
+```ts
+const { error } = await retransmit.emails.send(/* ... */);
+if (error?.code === "quota_exceeded") {
+  console.error(`Used ${error.used} of ${error.limit} emails this period`);
+}
+```
 
 ## Configuration
 

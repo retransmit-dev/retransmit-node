@@ -5,6 +5,8 @@ export { Whatsapp } from "./whatsapp";
 export { Batch } from "./batch";
 export type {
   Attachment,
+  BounceReason,
+  CancelEmailResponse,
   EmailAttachment,
   EmailAttachmentWithDownload,
   EmailEvent,
@@ -20,6 +22,8 @@ export type {
   ListEmailsOptions,
   ListEmailsResponse,
   RequestOptions,
+  RescheduleEmailOptions,
+  RescheduleEmailResponse,
   Result,
   RetransmitError,
   RetransmitOptions,
@@ -41,4 +45,10 @@ export type {
   WhatsappStatus,
   WhatsappTemplate,
 } from "./types";
-export { EMAIL_STATUSES, SMS_PROVIDERS, SMS_STATUSES, WHATSAPP_STATUSES } from "./types";
+export {
+  BOUNCE_REASONS,
+  EMAIL_STATUSES,
+  SMS_PROVIDERS,
+  SMS_STATUSES,
+  WHATSAPP_STATUSES,
+} from "./types";
