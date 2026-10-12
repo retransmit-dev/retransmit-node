@@ -33,3 +33,21 @@ otherwise compiles cleanly and silently drops the caller's data at runtime.
 Pushing to `main` runs `.github/workflows/release.yml`. It type-checks, tests, builds, compares
 `package.json` version with the npm registry, and publishes only when they differ.
 Auth is npm Trusted Publishing (OIDC), no token secret. A push without a version bump is a no-op.
+
+## Dependency updates
+
+Renovate (`renovate.json`, the Mend-hosted GitHub app) keeps the dev tooling current. It skips
+npm versions published less than three days ago.
+
+- Minor and patch package updates are batched into one branch, `renovate/all-minor-patch`, each
+  Monday (UTC). Renovate merges it straight into `main` once CI passes on the branch, which is
+  why `ci.yml` also runs on `renovate/**`. A PR is opened only when CI fails.
+- Major package updates and GitHub Actions updates get a PR and wait for a manual merge.
+
+Every package update also bumps the minor `version`, so merging it publishes a release. Workflow
+updates leave `version` alone and publish nothing.
+
+Renovate rebases its branches whenever `main` moves, which keeps that bump ahead of `main`. It
+stops once someone else pushes to the branch, so check `version` before merging a Renovate PR you
+have edited. The same goes for manual bumps: the release workflow skips a version that is already
+on npm.

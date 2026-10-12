@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "security:minimumReleaseAgeNpm",
+    ":semanticCommits"
+  ],
+  "packageRules": [
+    {
+      "description": "Minor and patch package updates are batched into one branch each Monday (UTC) and merged straight into main once CI passes. A PR is opened only when CI fails. Major updates always get a PR.",
+      "matchManagers": ["npm"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch",
+      "schedule": ["* * * * 1"],
+      "automerge": true,
+      "automergeType": "branch"
+    },
+    {
+      "description": "Every package update also bumps the SDK minor version, so release.yml publishes it as soon as the update lands on main. This uses bumpVersions because bumpVersion is skipped for in-range updates, which only change the lockfile. Branches are rebased whenever main moves, so the bump always starts from the version that is on main.",
+      "matchManagers": ["npm"],
+      "rebaseWhen": "behind-base-branch",
+      "bumpVersions": [
+        {
+          "name": "SDK version",
+          "filePatterns": ["package.json"],
+          "matchStrings": ["\"version\":\\s*\"(?<version>[^\"]+)\""],
+          "bumpType": "minor"
+        }
+      ]
+    }
+  ]
+}

@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # Renovate merges its branches without a PR once this workflow passes on them.
+    branches: [main, "renovate/**"]
   pull_request:
 
 concurrency:
