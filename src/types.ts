@@ -328,23 +328,26 @@ export type SmsStatus = (typeof SMS_STATUSES)[number];
 export const SMS_PROVIDERS = ["sns", "mtn", "orange"] as const;
 export type SmsProvider = (typeof SMS_PROVIDERS)[number];
 
+export const SMS_PURPOSES = ["otp", "security", "account", "reminder", "status_update"] as const;
+export type SmsPurpose = (typeof SMS_PURPOSES)[number];
+
+export type SmsConsentMethod = "web_form" | "otp_request" | "keyword" | "written" | "verbal";
+export type SmsSuppressionReason = "opt_out" | "manual" | "complaint" | "provider";
+
 export interface SendSmsOptions {
   /**
    * Sender id shown on the recipient's device (up to 11 characters:
    * letters, digits, space, - and _).
    *
-   * Approval is per country, so this must be a name your organization has had
-   * approved for the destination; request it in the dashboard under
-   * SMS > Sender IDs, which asks for the name and the countries, and for
-   * registration details only where the carriers require a filing. Sending
-   * with an unapproved name fails with `sender_not_allowed`. Leave it out to
-   * use your approved sender for that country, or the provider default when
-   * you have none.
+   * Required sender identity of an approved Cameroon SMS program. Shared and
+   * provider-default senders are disabled.
    */
-  from?: string;
-  /** One recipient or up to 50, in international format (`+237670000000`). All must share one country. */
+  from: string;
+  /** One Cameroon recipient or up to 50, in international format (`+237670000000`). */
   to: string | string[];
   text: string;
+  /** Transactional purpose approved for the program and recipient consent. */
+  purpose: SmsPurpose;
   /**
    * Pins the send to one carrier. Leave it out to let Retransmit route by
    * destination country and price. `sns` covers every destination; `mtn` and
@@ -353,6 +356,40 @@ export interface SendSmsOptions {
    * one cannot deliver.
    */
   provider?: SmsProvider;
+}
+
+export interface RecordSmsConsentOptions {
+  /** Sender identity of the approved SMS program. */
+  from: string;
+  phone: string;
+  purposes: SmsPurpose[];
+  method: SmsConsentMethod;
+  source: string;
+  /** Exact disclosure shown or read to the recipient. */
+  disclosure_text: string;
+  evidence_url?: string;
+  consented_at?: string;
+  confirmed_at?: string;
+}
+
+export interface SmsConsentResponse {
+  id: string;
+  phone: string;
+  from: string;
+  purposes: SmsPurpose[];
+  consented_at: string;
+}
+
+export interface OptOutSmsOptions {
+  phone: string;
+  reason?: SmsSuppressionReason;
+  source: string;
+}
+
+export interface SmsOptOutResponse {
+  id: string;
+  phone: string;
+  opted_out_at: string;
 }
 
 export interface SendSmsResponse {

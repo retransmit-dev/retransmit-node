@@ -292,14 +292,28 @@ const { data } = await retransmit.emails.tags();
 
 ## SMS
 
-Use international E.164 phone numbers. A single request can contain up to 50
-recipients, all in the same country.
+Production SMS currently supports opted-in recipients in Cameroon. Before the
+first send, record the recipient's affirmative consent and exact disclosure:
+
+```ts
+await retransmit.sms.recordConsent({
+  from: "DISCOLAIRE",
+  phone: "+237670000000",
+  purposes: ["otp", "account"],
+  method: "web_form",
+  source: "Discolaire notification settings",
+  disclosure_text:
+    "I agree to receive transactional SMS from Discolaire for the selected purposes.",
+  evidence_url: "https://discolaire.com/sms-opt-in",
+});
+```
 
 ```ts
 const { data, error } = await retransmit.sms.send({
-  from: "Acme",
+  from: "DISCOLAIRE",
   to: "+237670000000",
   text: "Your verification code is 482913",
+  purpose: "otp",
 });
 
 if (error) {
@@ -316,21 +330,30 @@ const { data } = await retransmit.sms.get("sms_xxxxxxxxxxxx");
 console.log(data?.status); // "sent" | "delivered" | "undelivered" | ...
 ```
 
-### Sender IDs
+### Approved programs
 
 `from` is the name shown on the handset instead of a phone number. Approval is
-per country, so request it first in the dashboard under **SMS > Sender IDs**.
-The request asks for the name and the countries you send to. Most countries
-accept the name as it is; where the carriers require a registration, the form
-adds what that filing needs (what you send, a sample message, your legal
-entity). Retransmit files it for you, and there is no AWS or carrier account to
-set up.
+for Cameroon, so request it first in the dashboard under **SMS > Programs**.
+The review covers the business, public opt-in and policy pages, transactional
+purposes, representative content, and hard volume limits.
 
 Sending with a name that is not approved for the destination country fails with
-`sender_not_allowed`. Leave `from` out to use your approved sender for that
-country, or the provider default when you have none.
+`sender_not_allowed`. `from` is required; shared and provider-default senders
+are disabled.
 
-The United States, Canada, and Mexico do not accept alphanumeric sender IDs.
+Every send also requires a transactional `purpose`: `otp`, `security`,
+`account`, `reminder`, or `status_update`. It must be approved for both the
+program and recipient.
+
+Apply opt-outs immediately:
+
+```ts
+await retransmit.sms.optOut({
+  phone: "+237670000000",
+  reason: "opt_out",
+  source: "Discolaire notification settings",
+});
+```
 
 ### Choosing a carrier
 
@@ -343,8 +366,10 @@ Retransmit has that carrier in:
 
 ```ts
 await retransmit.sms.send({
+  from: "DISCOLAIRE",
   to: "+237670000000",
   text: "Your verification code is 482913",
+  purpose: "otp",
   provider: "sns", // "sns" | "mtn" | "orange"
 });
 ```
